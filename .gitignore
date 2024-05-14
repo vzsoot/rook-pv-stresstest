@@ -1,0 +1,4 @@
+/build/
+/deploy/helm/rook-pv-stresstest/charts/
+/.idea/
+/.vscode/

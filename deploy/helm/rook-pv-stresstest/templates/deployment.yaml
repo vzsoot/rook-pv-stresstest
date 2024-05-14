@@ -1,0 +1,82 @@
+{{- $v:= . -}}
+{{- range $i, $role := .Values.roles }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "rook-pv-stresstest.fullname" $v }}-{{ $role.name }}
+  labels:
+    {{- include "rook-pv-stresstest.labels" $v | nindent 4 }}
+spec:
+  replicas: {{ $role.replicas }}
+  selector:
+    matchLabels:
+      {{- include "rook-pv-stresstest.selectorLabels" $v | nindent 6 }}
+  template:
+    metadata:
+      {{- with $v.Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "rook-pv-stresstest.labels" $v | nindent 8 }}
+        {{- with $v.Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with $v.Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "rook-pv-stresstest.serviceAccountName" $v }}
+      securityContext:
+        {{- toYaml $v.Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ $v.Chart.Name }}
+          securityContext:
+            {{- toYaml $v.Values.securityContext | nindent 12 }}
+          image: "{{ $v.Values.image.repository }}/rook-pv-stresstest:{{ $v.Values.image.tag | default $v.Chart.AppVersion }}"
+          imagePullPolicy: {{ $v.Values.image.pullPolicy }}
+          env:
+            - name: GIN_MODE
+              value: release
+            - name: ROLE
+              value: {{ $role.name }}
+            {{- range $i, $volume := $v.Values.volumes}}
+            - name: {{ $volume.env }}
+              value: {{ $volume.path }}
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ $v.Values.service.port }}
+              protocol: TCP
+          livenessProbe:
+            {{- toYaml $v.Values.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml $v.Values.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml $v.Values.resources | nindent 12 }}
+          volumeMounts:
+            {{- range $i, $volume := $v.Values.volumes}}
+            - name: {{ $volume.name }}
+              mountPath: {{ $volume.path }}
+            {{- end }}
+      volumes:
+        {{- range $i, $volume := $v.Values.volumes}}
+        - name: {{ $volume.name }}
+          persistentVolumeClaim:
+            claimName: {{ $volume.name }}
+        {{- end }}
+      {{- with $v.Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $v.Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $v.Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

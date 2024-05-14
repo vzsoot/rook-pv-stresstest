@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "rook-pv-stresstest.fullname" . }}
+  labels:
+    {{- include "rook-pv-stresstest.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "rook-pv-stresstest.selectorLabels" . | nindent 4 }}

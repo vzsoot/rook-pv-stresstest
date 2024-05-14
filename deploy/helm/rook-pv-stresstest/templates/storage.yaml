@@ -1,0 +1,19 @@
+{{- $v:= . -}}
+{{- $volumes := .Values.volumes -}}
+{{- range $i, $volume := $volumes }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: Helm
+  name: {{ $volume.name }}
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: {{ $volume.size }}
+  storageClassName: {{ $v.Values.storageClassName }}
+  volumeMode: Filesystem
+{{- end }}
