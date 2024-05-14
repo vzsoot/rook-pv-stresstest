@@ -40,6 +40,10 @@ spec:
           env:
             - name: GIN_MODE
               value: release
+            - name: FILE_NUM
+              value: "{{ $v.Values.fileNum }}"
+            - name: FILE_SIZE
+              value: "{{ $v.Values.fileSize }}"
             - name: ROLE
               value: {{ $role.name }}
             {{- range $i, $volume := $v.Values.volumes}}

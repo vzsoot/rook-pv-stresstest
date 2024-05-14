@@ -10,7 +10,7 @@ metadata:
   name: {{ $volume.name }}
 spec:
   accessModes:
-    - ReadWriteMany
+    - {{ $v.Values.storageAccessMode }}
   resources:
     requests:
       storage: {{ $volume.size }}

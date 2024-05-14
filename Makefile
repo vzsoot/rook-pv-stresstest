@@ -10,6 +10,6 @@ build-helm:
 build-image:
 	docker build -t $(REGISTRY_LOCAL)rook-pv-stresstest:$(VERSION) -f src/Dockerfile src/.
 
-publish: build-image
+publish: build-image build-helm
 	docker tag $(REGISTRY_LOCAL)rook-pv-stresstest:$(VERSION) $(REGISTRY)/rook-pv-stresstest:$(VERSION); \
 	docker push $(REGISTRY)/rook-pv-stresstest:$(VERSION);

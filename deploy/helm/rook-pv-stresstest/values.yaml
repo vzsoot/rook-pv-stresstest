@@ -48,6 +48,7 @@ readinessProbe:
     port: http
 
 storageClassName: "rook-cephfs"
+storageAccessMode: "ReadWriteMany"
 volumes:
   - name: volume1
     env: VOLUME_PATH1
@@ -58,11 +59,13 @@ volumes:
     path: /data/volume2
     size: 5Gi
 
+fileNum: 100
+fileSize: 16384
 roles:
   - name: producer
     replicas: 1
   - name: consumer
-    replicas: 5
+    replicas: 30
 
 nodeSelector: {}
 
