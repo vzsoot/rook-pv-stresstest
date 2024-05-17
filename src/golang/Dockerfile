@@ -11,9 +11,9 @@ RUN go mod download
 
 COPY main.go main.go
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o application main.go
+RUN GOMAXPROCS=1 GOGC=off CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o application main.go
 
-FROM gcr.io/distroless/static:nonroot
+FROM rockylinux:9
 WORKDIR /
 COPY --from=builder /workspace/application .
 USER 65532:65532

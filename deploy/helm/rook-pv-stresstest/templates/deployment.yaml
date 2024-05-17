@@ -35,7 +35,7 @@ spec:
         - name: {{ $v.Chart.Name }}
           securityContext:
             {{- toYaml $v.Values.securityContext | nindent 12 }}
-          image: "{{ $v.Values.image.repository }}/rook-pv-stresstest:{{ $v.Values.image.tag | default $v.Chart.AppVersion }}"
+          image: "{{ $v.Values.image.repository }}/rook-pv-stresstest-{{ $role.name }}:{{ $v.Values.image.tag | default $v.Chart.AppVersion }}"
           imagePullPolicy: {{ $v.Values.image.pullPolicy }}
           env:
             - name: GIN_MODE
@@ -54,10 +54,6 @@ spec:
             - name: http
               containerPort: {{ $v.Values.service.port }}
               protocol: TCP
-          livenessProbe:
-            {{- toYaml $v.Values.livenessProbe | nindent 12 }}
-          readinessProbe:
-            {{- toYaml $v.Values.readinessProbe | nindent 12 }}
           resources:
             {{- toYaml $v.Values.resources | nindent 12 }}
           volumeMounts:

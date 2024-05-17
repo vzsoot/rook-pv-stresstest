@@ -5,11 +5,14 @@ import (
 	"github.com/elliotxx/healthcheck"
 	"github.com/gin-gonic/gin"
 	"github.com/go-co-op/gocron/v2"
+	"golang.org/x/exp/mmap"
 	"golang.org/x/sys/unix"
 	"log/slog"
 	"os"
+	"runtime"
 	"strconv"
 	"syscall"
+	"time"
 )
 
 const (
@@ -63,8 +66,9 @@ func createFiles(num int64, size int64, path string) {
 		data[i] = one[0]
 	}
 
+	fileName := ""
 	for i := int64(0); i < num; i++ {
-		fileName := fmt.Sprintf("%s/data%d.txt", path, i)
+		fileName = fmt.Sprintf("%s/data%d.txt", path, i)
 
 		fd, err := syscall.Open(fileName, syscall.O_CREAT|syscall.O_RDWR, 0644)
 		fileError(err, fileName)
@@ -72,24 +76,32 @@ func createFiles(num int64, size int64, path string) {
 		_, err = syscall.Write(fd, []byte(string(data)))
 		fileError(err, fileName)
 
-		_, _, errLSeek := unix.Syscall(unix.SYS_LSEEK, uintptr(fd), 0, unix.SEEK_SET)
-		if errLSeek != 0 {
-			slog.Error("LSeek error", "fileName", fileName, "err", err)
-		}
-
-		_, _, errLSeek = unix.Syscall(unix.SYS_LSEEK, uintptr(fd), 0, unix.SEEK_END)
-		if errLSeek != 0 {
-			slog.Error("LSeek error", "fileName", fileName, "err", err)
-		}
-
-		_, _, errSyncFs := unix.Syscall(unix.SYS_SYNCFS, uintptr(fd), 0, 0)
-		if errSyncFs != 0 {
-			slog.Error("SyncFs error", "fileName", fileName, "err", err)
-		}
-
 		err = syscall.Close(fd)
 		fileError(err, fileName)
 	}
+
+	// Do sync fs on last file
+	fd, err := syscall.Open(fileName, syscall.O_CREAT|syscall.O_RDWR, 0644)
+	fileError(err, fileName)
+
+	_, _, errLSeek := unix.Syscall(unix.SYS_LSEEK, uintptr(fd), 0, unix.SEEK_SET)
+	if errLSeek != 0 {
+		slog.Error("LSeek error", "fileName", fileName, "err", err)
+	}
+
+	_, _, errLSeek = unix.Syscall(unix.SYS_LSEEK, uintptr(fd), 0, unix.SEEK_END)
+	if errLSeek != 0 {
+		slog.Error("LSeek error", "fileName", fileName, "err", err)
+	}
+
+	_, _, errSyncFs := unix.Syscall(unix.SYS_SYNCFS, uintptr(fd), 0, 0)
+	if errSyncFs != 0 {
+		slog.Error("SyncFs error", "fileName", fileName, "err", err)
+	}
+
+	err = syscall.Close(fd)
+	fileError(err, fileName)
+
 }
 
 func producer() {
@@ -111,16 +123,12 @@ func producer() {
 		os.Exit(2)
 	}
 	slog.Info("FileSize path", FileSize, fileSize)
-
-	scheduler(
-		func() {
-			slog.Info("Producing")
-			createFiles(fileNumber, fileSize, volumePath1)
-			createFiles(fileNumber, fileSize, volumePath2)
-		},
-		"*/10 * * * * *")
-
-	server()
+	for {
+		slog.Info("Producing")
+		createFiles(fileNumber, fileSize, volumePath1)
+		createFiles(fileNumber, fileSize, volumePath2)
+		time.Sleep(10 * time.Second)
+	}
 }
 
 func consumeVolume(path string) {
@@ -135,39 +143,15 @@ func consumeVolume(path string) {
 		fileName := fmt.Sprintf("%s/%s", path, entry.Name())
 		slog.Info(fileName)
 
-		stat := &syscall.Stat_t{}
-		err := syscall.Stat(fileName, stat)
+		reader, err := mmap.Open(fileName)
 		fileError(err, fileName)
 
-		fd, err := syscall.Open(fileName, syscall.O_RDONLY, 0644)
-		fileError(err, fileName)
-
-		data := make([]byte, stat.Size)
-
-		_, err = syscall.Read(fd, data)
-		fileError(err, fileName)
-
-		_, _, errLSeek := unix.Syscall(unix.SYS_LSEEK, uintptr(fd), 0, unix.SEEK_SET)
-		if errLSeek != 0 {
-			slog.Error("LSeek error", "fileName", fileName, "err", err)
-		}
-
-		_, _, errLSeek = unix.Syscall(unix.SYS_LSEEK, uintptr(fd), 0, unix.SEEK_END)
-		if errLSeek != 0 {
-			slog.Error("LSeek error", "fileName", fileName, "err", err)
-		}
-
-		_, _, errSyncFs := unix.Syscall(unix.SYS_SYNCFS, uintptr(fd), 0, 0)
-		if errSyncFs != 0 {
-			slog.Error("SyncFs error", "fileName", fileName, "err", err)
-		}
-
-		if stat.Size > 1 {
-			fileValue := data[stat.Size-1]
+		if reader.Len() > 1 {
+			fileValue := reader.At(reader.Len() - 1)
 			slog.Info("Value from file", "fileValue", string(fileValue))
 		}
 
-		err = syscall.Close(fd)
+		err = reader.Close()
 		fileError(err, fileName)
 	}
 }
@@ -178,13 +162,13 @@ func consumer() {
 	volumePath2 := os.Getenv(VolumePath2)
 	slog.Info("Volume path", VolumePath2, volumePath2)
 
-	scheduler(func() {
+	for {
 		slog.Info("Consuming")
+		runtime.GC()
 		consumeVolume(volumePath1)
 		consumeVolume(volumePath2)
-	}, "*/1 * * * * *")
-
-	server()
+		time.Sleep(time.Second)
+	}
 }
 
 func main() {
