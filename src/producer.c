@@ -47,6 +47,8 @@ int main() {
     const int fileNum = atoi(fileNumEnv);
     const int fileSize = atoi(fileSizeEnv);
 
+    setbuf(stdout, NULL);
+    
     while (1) {
         printf("[INFO] Producing files ...\n");
         const char* vol1File = createFiles(fileNum, fileSize, volume1);

@@ -8,10 +8,10 @@ build-helm:
 	helm package deploy/helm/rook-pv-stresstest --dependency-update -d build/ --version $(VERSION) --app-version $(VERSION)
 
 build-image-consumer:
-	docker build -t $(REGISTRY_LOCAL)rook-pv-stresstest-consumer:$(VERSION) -f src/golang/Dockerfile src/golang/.
+	docker build -t $(REGISTRY_LOCAL)rook-pv-stresstest-consumer:$(VERSION) -f src/consumer.Dockerfile src/.
 
 build-image-producer:
-	docker build -t $(REGISTRY_LOCAL)rook-pv-stresstest-producer:$(VERSION) -f src/c/Dockerfile src/c/.
+	docker build -t $(REGISTRY_LOCAL)rook-pv-stresstest-producer:$(VERSION) -f src/producer.Dockerfile src/.
 
 publish: all
 	docker tag $(REGISTRY_LOCAL)rook-pv-stresstest-consumer:$(VERSION) $(REGISTRY)/rook-pv-stresstest-consumer:$(VERSION); \
